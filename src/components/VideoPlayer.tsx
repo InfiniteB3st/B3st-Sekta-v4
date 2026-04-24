@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { AddonResolver, AddonSource, StreamLink } from '../services/AddonResolver';
-import { syncWatchHistory, supabase } from '../services/supabaseClient';
+import { syncWatchHistory } from '../services/supabaseClient';
 import { EpisodeList } from './EpisodeList';
 import { jikanService } from '../services/jikan';
 

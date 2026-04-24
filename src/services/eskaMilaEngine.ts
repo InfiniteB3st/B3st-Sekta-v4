@@ -1,10 +1,18 @@
 import { GoogleGenAI } from "@google/genai";
 import { getSupabase } from "./supabaseClient";
 
-const eskaMilaNode = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+let eskaMilaNode: GoogleGenAI | null = null;
 
 export const getEskaMilaResponse = async (userPrompt: string, diagnosticData: any) => {
   try {
+    if (!eskaMilaNode) {
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+         return "SYSTEM_FRACTURED: API Key missing from environment. Eska Mila is dormant.";
+      }
+      eskaMilaNode = new GoogleGenAI({ apiKey });
+    }
+    
     const supabaseClient = getSupabase();
     const session = await supabaseClient?.auth.getSession();
     const addons = JSON.parse(localStorage.getItem('sekta_addons') || '[]');

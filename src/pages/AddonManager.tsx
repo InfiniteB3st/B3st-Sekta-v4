@@ -7,7 +7,7 @@ import {
   CheckCircle2, XCircle, Info
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../services/supabaseClient';
+import { getSupabase } from '../services/supabaseClient';
 
 interface AddonManifest {
   addon_id: string;
@@ -41,6 +41,7 @@ export default function AddonManager() {
   const loadAddons = async () => {
     try {
       if (user) {
+        const supabase = getSupabase();
         const { data, error: dbError } = await (supabase as any)
           .from('user_addons')
           .select('*')
@@ -92,6 +93,7 @@ export default function AddonManager() {
       };
 
       if (user) {
+        const supabase = getSupabase();
         const { error: dbError } = await (supabase as any)
           .from('user_addons')
           .upsert({
@@ -124,7 +126,7 @@ export default function AddonManager() {
   const uninstallAddon = async (id: string) => {
     try {
       if (user) {
-        await (supabase as any).from('user_addons').delete().eq('user_id', user.id).eq('addon_id', id);
+        await (getSupabase() as any).from('user_addons').delete().eq('user_id', user.id).eq('addon_id', id);
       } else {
         const local = JSON.parse(localStorage.getItem('sekta_addons') || '[]');
         const filtered = local.filter((a: any) => a.addon_id !== id);

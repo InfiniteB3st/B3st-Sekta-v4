@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { jikanService, Anime } from '../services/jikan';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../services/supabaseClient';
+import { getSupabase } from '../services/supabaseClient';
 import { Star, Play, Loader2, ShieldCheck } from 'lucide-react';
 import { EpisodeList } from '../components/EpisodeList';
 
@@ -35,6 +35,7 @@ export default function AnimeDetails() {
         setEpisodes(eps);
 
         if (user) {
+          const supabase = getSupabase();
           // Sync Watch List Status from user_lists engine
           const { data } = await supabase
             .from('watch_data')
@@ -64,7 +65,7 @@ export default function AnimeDetails() {
   const handleUpdateStatus = async (newStatus: WatchStatus) => {
     if (!user || !id || !anime) return;
     setSyncing(true);
-    const { error } = await supabase
+    const { error } = await getSupabase()
       .from('watch_data')
       .upsert({
         user_id: user.id,

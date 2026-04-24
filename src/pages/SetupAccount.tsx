@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { User, ShieldCheck, ArrowRight, Loader2, Lock, Sparkles, Image as ImageIcon } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { supabase, syncProfile } from '../services/supabaseClient';
+import { getSupabase, syncProfile } from '../services/supabaseClient';
 import { useNavigate } from 'react-router-dom';
 
 /**
@@ -46,6 +46,7 @@ export default function SetupAccount() {
     setError(null);
 
     try {
+      const supabase = getSupabase();
       // 1. Uniqueness Guard
       const { data: existingUser } = await supabase
         .from('profiles')

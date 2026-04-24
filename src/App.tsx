@@ -128,20 +128,11 @@ function AppContent() {
   useEffect(() => {
     console.log("Kernel: Pre-flight sequence initiated...");
     
-    // MASTER KEY SHORTCUT: Shift + Q + T
-    const keys: Record<string, boolean> = {};
-    const handleKeyDown = (e: KeyboardEvent) => {
-      keys[e.key.toUpperCase()] = true;
-      if (e.shiftKey && keys['Q'] && keys['T']) {
-        setShowDiagnostics(prev => !prev);
-      }
-    };
-    const handleKeyUp = (e: KeyboardEvent) => {
-      keys[e.key.toUpperCase()] = false;
+    const handleNativeToggle = () => {
+      setShowDiagnostics(prev => !prev);
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('toggle-diagnosis', handleNativeToggle);
 
     // CAPTURE SYSTEM ERRORS
     const originalError = console.error;
@@ -217,8 +208,7 @@ function AppContent() {
 
     return () => {
       subscription?.unsubscribe();
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('toggle-diagnosis', handleNativeToggle);
     };
   }, []);
 

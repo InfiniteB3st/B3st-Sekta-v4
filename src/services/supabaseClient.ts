@@ -6,64 +6,36 @@ const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 let _supabase: any = null;
 
 /**
- * initSupabase: The isolated handshake protocol.
- * Returns the client only when explicitly called, preventing boot-time crashes.
+ * getClient: The single source of truth for Supabase connectivity.
+ * Returns null if initialization fails, preventing the white-screen crash.
  */
-export const initSupabase = () => {
+export const getClient = () => {
   if (typeof window === 'undefined') return null;
   
   if (!_supabase) {
     try {
       if (!SB_KEY || SB_KEY.includes('REPLACE')) {
-        (window as any).HANDSHAKE_ERROR = true;
         return null;
       }
       _supabase = createClient(SB_URL, SB_KEY);
-      (window as any).HANDSHAKE_ERROR = false;
     } catch (err) {
-      (window as any).HANDSHAKE_ERROR = true;
+      console.error("SUPABASE_INIT_FAILURE: Kernel isolated.", err);
       return null;
     }
   }
   return _supabase;
 };
 
-// Legacy support for internal calls - but initSupabase is the preferred node
-export const getSupabase = initSupabase;
-
-/**
- * SAPABSE PROXY NODES (STABILITY LAYER)
- * Safely redirects calls to initialized client.
- */
-export const supabase = new Proxy({} as any, {
-  get: (target, prop) => {
-    const client = initSupabase();
-    if (!client) {
-      // Emergency Mock nodes to prevent crashing
-      if (prop === 'auth') return { 
-        getSession: async () => ({ data: { session: null } }),
-        onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
-        signOut: async () => {} 
-      };
-      if (prop === 'from') return () => ({ 
-        select: () => ({ order: () => ({ limit: () => ({ single: async () => ({ data: null }), maybeSingle: async () => ({ data: null }) }) }), limit: () => ({ single: async () => ({ data: null }), maybeSingle: async () => ({ data: null }) }) }),
-        upsert: async () => ({ error: null }),
-        insert: async () => ({ error: null }),
-        update: () => ({ eq: () => ({ select: () => ({ single: async () => ({ data: null }) }) }) }),
-        delete: () => ({ eq: () => ({ eq: async () => ({ error: null }) }) })
-      });
-      return null;
-    }
-    return client[prop];
-  }
-});
+// Compatibility nodes for existing imports
+export const getSupabase = getClient;
+export const initSupabase = getClient;
 
 // WATCH HISTORY PROTOCOL (INCOGNITO COMPLIANT)
 export const syncWatchHistory = async (history: any) => {
-  const { user_id, anime_id } = history;
-  
-  if (!user_id) {
+  const client = getClient();
+  if (!client) {
     const localHistory = JSON.parse(localStorage.getItem('sekta_history') || '[]');
+    const anime_id = history.anime_id;
     const existingIndex = localHistory.findIndex((h: any) => h.anime_id === anime_id);
     const newEntry = { ...history, updated_at: new Date().toISOString() };
     if (existingIndex > -1) localHistory[existingIndex] = newEntry;
@@ -72,37 +44,35 @@ export const syncWatchHistory = async (history: any) => {
     return;
   }
 
-  const { error } = await supabase
+  const { user_id } = history;
+  if (!user_id) return;
+
+  const { error } = await client
     .from('watch_history')
     .upsert({ ...history, updated_at: new Date().toISOString() }, { onConflict: 'user_id,anime_id' });
   if (error) console.error('Cloud Sync Failed:', error);
 };
 
-export const envSource = "Hard-coded Primary Source";
-
-export const getKeyHandshake = () => ({
-  prefix: SB_KEY.substring(0, 5),
-  suffix: SB_KEY.substring(SB_KEY.length - 5)
-});
-
-/**
- * IDENTITY MANAGEMENT FUNCTIONS
- */
-
 export const updateUserEmail = async (newEmail: string) => {
-  const { data, error } = await supabase.auth.updateUser({ email: newEmail });
+  const client = getClient();
+  if (!client) throw new Error("Supabase not initialized");
+  const { data, error } = await client.auth.updateUser({ email: newEmail });
   if (error) throw error;
   return data;
 };
 
 export const updateUserPassword = async (password: string) => {
-  const { data, error } = await supabase.auth.updateUser({ password });
+  const client = getClient();
+  if (!client) throw new Error("Supabase not initialized");
+  const { data, error } = await client.auth.updateUser({ password });
   if (error) throw error;
   return data;
 };
 
 export const updateUsername = async (userId: string, username: string) => {
-  const { data, error } = await (supabase as any)
+  const client = getClient();
+  if (!client) throw new Error("Supabase not initialized");
+  const { data, error } = await client
     .from('profiles')
     .update({ username, updated_at: new Date().toISOString() })
     .eq('id', userId)
@@ -112,12 +82,11 @@ export const updateUsername = async (userId: string, username: string) => {
   return data;
 };
 
-/**
- * Robust OAuth Wrapper to prevent "Channel Blocked" errors
- */
 export const signInWithGoogle = async (redirectTo: string) => {
+  const client = getClient();
+  if (!client) throw new Error("Supabase not initialized");
   try {
-    const { error } = await supabase.auth.signInWithOAuth({
+    const { error } = await client.auth.signInWithOAuth({
       provider: 'google',
       options: { 
         redirectTo,
@@ -131,15 +100,11 @@ export const signInWithGoogle = async (redirectTo: string) => {
   }
 };
 
-export const getSupabaseClient = (): any => supabase;
-
-/**
- * IDENTITY SYNC: Auto-provision profile on successful handshake
- */
 export const syncUserProfile = async (user: any) => {
-  if (!user) return null;
+  const client = getClient();
+  if (!client || !user) return null;
   
-  const { data: profile, error: fetchError } = await (supabase as any)
+  const { data: profile, error: fetchError } = await client
     .from('profiles')
     .select('*')
     .eq('id', user.id)
@@ -154,14 +119,18 @@ export const syncUserProfile = async (user: any) => {
 };
 
 export const syncProfile = async (payload: any) => {
-  const { error } = await (supabase as any)
+  const client = getClient();
+  if (!client) return;
+  const { error } = await client
     .from('profiles')
     .upsert({ ...payload, updated_at: new Date().toISOString() }, { onConflict: 'id' });
   if (error) console.error('Profile Sync Failure:', error);
 };
 
 export const signUpUser = async (email: string, pass: string, username: string) => {
-  const { data, error } = await supabase.auth.signUp({ 
+  const client = getClient();
+  if (!client) throw new Error("Supabase not initialized");
+  const { data, error } = await client.auth.signUp({ 
     email, 
     password: pass,
     options: {
@@ -172,8 +141,7 @@ export const signUpUser = async (email: string, pass: string, username: string) 
   if (error) throw error;
   
   if (data.user) {
-    // BRIDGE: Manually insert into profiles if trigger fails
-    const { error: profileError } = await (supabase as any)
+    const { error: profileError } = await client
       .from('profiles')
       .upsert({
         id: data.user.id,
@@ -186,3 +154,8 @@ export const signUpUser = async (email: string, pass: string, username: string) 
   
   return data;
 };
+
+export const getKeyHandshake = () => ({
+  prefix: SB_KEY.substring(0, 5),
+  suffix: SB_KEY.substring(SB_KEY.length - 5)
+});

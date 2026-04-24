@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase, signInWithGoogle } from '../services/supabaseClient';
+import { getSupabase, signInWithGoogle } from '../services/supabaseClient';
 import { Mail, Lock, LogIn, Chrome, ShieldAlert, Zap, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
@@ -22,6 +22,7 @@ export default function Login() {
     setError(null);
 
     try {
+      const supabase = getSupabase();
       if (isSignUp) {
         const { data, error: signupError } = await supabase.auth.signUp({ 
           email, 

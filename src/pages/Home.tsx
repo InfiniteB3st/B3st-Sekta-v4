@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { jikanService, Anime } from '../services/jikan';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../services/supabaseClient';
+import { getSupabase } from '../services/supabaseClient';
 import { AnimeCard } from '../components/AnimeCard';
 import { Flame, Star, Play, ChevronRight, Info, Clock, TrendingUp } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -27,6 +27,7 @@ export default function Home() {
         setMostPopular(popular);
 
         if (user) {
+          const supabase = getSupabase();
           const { data } = await (supabase as any)
             .from('watch_history')
             .select('*')

@@ -3,11 +3,82 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>My Google AI Studio App</title>
+    <title>B3st Sekta</title>
   </head>
   <body>
     <div id="root"></div>
+    
+    <!-- SEKTA KERNEL DIAGNOSIS (HARD-WIRED FALLBACK) -->
+    <div id="sekta-diagnosis" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 100000; color: #ffb100; font-family: 'JetBrains Mono', monospace; padding: 40px; overflow-y: auto;">
+      <div style="max-width: 800px; margin: 0 auto;">
+         <h1 style="font-size: 32px; font-weight: 900; font-style: italic; text-transform: uppercase;">Kernel Diagnosis <span style="color: white">Standby</span></h1>
+         <p style="font-size: 10px; color: #666; letter-spacing: 2px;">RECOVERY_SHELL_ACTIVE // SHIFT+Q+T_BYPASS</p>
+         
+         <div style="margin-top: 40px; background: #111; border: 1px solid #333; border-radius: 12px; padding: 30px;">
+            <h3 style="margin-top: 0; color: white;">System State</h3>
+            <pre id="diag-logs" style="font-size: 12px; line-height: 1.6; color: #888;">
+Eska Mila: STANDBY
+Supabase: INITIALIZING
+Handshake: PENDING
+            </pre>
+         </div>
+
+         <div style="margin-top: 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+           <button onclick="window.location.reload()" style="background: #ffb100; color: #000; border: none; padding: 20px; font-weight: 900; border-radius: 8px; cursor: pointer; text-transform: uppercase;">Reboot Kernel</button>
+           <button onclick="document.getElementById('sekta-diagnosis').style.display = 'none'" style="background: #222; color: #fff; border: 1px solid #333; padding: 20px; font-weight: 900; border-radius: 8px; cursor: pointer; text-transform: uppercase;">Close Shell</button>
+         </div>
+      </div>
+    </div>
+
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      (function() {
+        window._sekta_errors = window._sekta_errors || [];
+        const originalError = console.error;
+        console.error = function() {
+          window._sekta_errors.push({
+            msg: Array.from(arguments).join(' '),
+            time: new Date().toISOString()
+          });
+          originalError.apply(console, arguments);
+        };
+        window.addEventListener('error', (e) => {
+          window._sekta_errors.push({
+            msg: e.message,
+            time: new Date().toISOString()
+          });
+        });
+
+        // KERNEL PERSISTENCE: window.getSystemStats
+        window.getSystemStats = () => {
+          return {
+            url: window.location.href,
+            origin: window.location.origin,
+            tokens: Object.keys(localStorage).filter(k => k.includes('sb-')),
+            errors: window._sekta_errors.slice(-5),
+            timestamp: new Date().toISOString()
+          };
+        };
+
+        const keys = new Set();
+        window.addEventListener('keydown', (e) => {
+          keys.add(e.code);
+          // MASTER KERNEL BYPASS: Shift + Q + T
+          if (e.shiftKey && (keys.has('KeyQ') || e.code === 'KeyQ') && (keys.has('KeyT') || e.code === 'KeyT')) {
+            e.preventDefault(); 
+            e.stopPropagation();
+            window.dispatchEvent(new CustomEvent('toggle-diagnosis'));
+          }
+        }, true); // Use capture phase to bypass component-level stopPropagation
+        
+        window.addEventListener('keyup', (e) => {
+          keys.delete(e.code);
+        }, true);
+        
+        // Safety: Clear keys when window loses focus
+        window.addEventListener('blur', () => keys.clear());
+      })();
+    </script>
   </body>
 </html>
 

@@ -1,13 +1,15 @@
-import { getSupabaseClient } from './supabaseClient';
+import { getSupabase } from './supabaseClient';
 
-export function getSupabase(): any {
+export function getSupabaseClient(): any {
   try {
-    return getSupabaseClient();
+    return getSupabase();
   } catch (err) {
     console.warn(err);
     return null;
   }
 }
+
+export { getSupabase };
 
 export const syncWatchHistory = async (userId: string, animeId: number, progress: number, episodes: number) => {
   const supabase = getSupabase();

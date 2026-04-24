@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient';
+import { getSupabase } from './supabaseClient';
 
 export interface AddonSource {
   id: string;
@@ -43,6 +43,7 @@ export const AddonResolver = {
       }));
     }
 
+    const supabase = getSupabase();
     const { data, error } = await supabase
       .from('user_addons')
       .select('*')

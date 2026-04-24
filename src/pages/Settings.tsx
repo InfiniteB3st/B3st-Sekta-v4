@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../services/supabaseClient';
+import { getSupabase } from '../services/supabaseClient';
 import { User, Palette, Download, Upload, RefreshCw, Check, AlertCircle, Plus, LayoutGrid, Import } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -21,7 +21,7 @@ export default function Settings() {
     localStorage.setItem('sekta_accent', color);
     
     if (user) {
-      const { error } = await supabase
+      const { error } = await getSupabase()
         .from('profiles')
         .update({ accent_color: color })
         .eq('id', user.id);
@@ -59,7 +59,7 @@ export default function Settings() {
         updated_at: new Date().toISOString()
       }));
 
-      const { error } = await supabase
+      const { error } = await getSupabase()
         .from('watch_data')
         .upsert(watchEntries, { onConflict: 'user_id,anime_id' });
 

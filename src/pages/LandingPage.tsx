@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, ChevronRight, Play } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { jikanService } from '../services/jikan';
-import { supabase } from '../services/supabaseClient';
+import { getSupabase } from '../services/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 
 export default function LandingPage() {
@@ -14,6 +14,7 @@ export default function LandingPage() {
   useEffect(() => {
     const fetchHero = async () => {
       try {
+        const supabase = getSupabase();
         if (user && supabase) {
           const { data: history } = await (supabase as any)
             .from('watch_history')

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
-import { supabase, syncUserProfile } from '../services/supabaseClient';
+import { getSupabase, syncUserProfile } from '../services/supabaseClient';
 
 interface AuthContextType {
   session: Session | null;
@@ -49,7 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       document.documentElement.style.setProperty('--primary', localAccent);
     }
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    getSupabase().auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
@@ -58,9 +58,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = getSupabase().auth.onAuthStateChange(async (event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
+      
+      // TOKEN_NULL detection while session purportedly exists
+      if (event === 'TOKEN_REFRESHED' && !session) {
+         console.warn("KERNEL_ALERT: Token nullification detected. Synchronizing state...");
+         window.location.reload();
+      }
+
       if (session?.user) {
         await fetchProfile(session.user.id, session.user);
       } else {
@@ -75,7 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    await getSupabase().auth.signOut();
   };
 
   const refreshProfile = async () => {

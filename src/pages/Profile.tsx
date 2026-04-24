@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { User, Palette, LogOut, Save, Camera, ShieldCheck, Mail, Database, RefreshCw, Loader2, Lock, Chrome, Link as LinkIcon, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { supabase, updateUserEmail, updateUserPassword, updateUsername } from '../services/supabaseClient';
+import { getSupabase, updateUserEmail, updateUserPassword, updateUsername } from '../services/supabaseClient';
 import ListManager from '../components/ListManager';
 
 const ACCENT_COLORS = [
@@ -31,7 +31,7 @@ export default function Profile() {
 
   const handleUpdateAccent = async (color: string) => {
     if (!user) return;
-    const { error } = await supabase
+    const { error } = await getSupabase()
       .from('profiles')
       .update({ accent_color: color, updated_at: new Date().toISOString() })
       .eq('id', user.id);
@@ -80,7 +80,7 @@ export default function Profile() {
 
   const linkGoogle = async () => {
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { error } = await getSupabase().auth.signInWithOAuth({
         provider: 'google',
         options: { redirectTo: window.location.origin + '/profile' }
       });
