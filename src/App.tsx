@@ -29,7 +29,7 @@ interface ErrorBoundaryProps {
 
 interface ErrorBoundaryState {
   hasError: boolean;
-  error: any;
+  error: Error | null;
 }
 
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
@@ -41,11 +41,11 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
     };
   }
 
-  static getDerivedStateFromError(error: any): ErrorBoundaryState {
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: any, errorInfo: any) {
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error("CRITICAL_SYSTEM_CRASH:", error, errorInfo);
   }
 
@@ -129,8 +129,8 @@ function AppContent() {
     console.log("Kernel: Pre-flight sequence initiated...");
     
     const handleNativeToggle = () => {
-      const devEmail = "wambuamaxwell696@gmail.com";
-      const isAuthorized = user?.email === devEmail || user?.email === 'infiniteb3st@gmail.com' || (window.location.hostname === 'localhost');
+      // MASTER GATE: Temporarily accessible to ALL users until account issue is 100% resolved
+      const isAuthorized = true;
       
       if (isAuthorized) {
         setShowDiagnostics(prev => !prev);
@@ -142,8 +142,6 @@ function AppContent() {
             status: "Optimizing kernel routing..."
           });
         }
-      } else {
-        console.warn("Dev Mode Access Denied: Unauthorized User.");
       }
     };
 
@@ -152,7 +150,7 @@ function AppContent() {
     // CAPTURE SYSTEM ERRORS
     const originalError = console.error;
     (window as any)._sekta_errors = [];
-    console.error = (...args: any[]) => {
+    const customError = (...args: any[]) => {
       (window as any)._sekta_errors.push({
         msg: args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' '),
         time: new Date().toISOString()
@@ -160,6 +158,7 @@ function AppContent() {
       if ((window as any)._sekta_errors.length > 50) (window as any)._sekta_errors.shift();
       originalError.apply(console, args);
     };
+    console.error = customError;
 
     // Inject global styles to ensure Branding consistency
     const style = document.createElement('style');
@@ -224,6 +223,7 @@ function AppContent() {
     return () => {
       subscription?.unsubscribe();
       window.removeEventListener('toggle-diagnosis', handleNativeToggle);
+      console.error = originalError;
     };
   }, []);
 

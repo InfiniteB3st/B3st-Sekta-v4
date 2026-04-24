@@ -1,9 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 
-const SB_URL = "https://wnjdlqqlmzjklxcgiqap.supabase.co";
-const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InduamRscXFsbXpqa2x4Y2dpcWFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3ODU4MzIsImV4cCI6MjA5MjM2MTgzMn0.Z-WM1XtqO2CNPB9qmi0ivswAE-MVE8tBrrpqX1i5rRE";
+const SB_URL = import.meta.env.VITE_SUPABASE_URL || import.meta.env.NEXT_PUBLIC_SUPABASE_URL || "https://wnjdlqqlmzjklxcgiqap.supabase.co";
+const SB_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InduamRscXFsbXpqa2x4Y2dpcWFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3ODU4MzIsImV4cCI6MjA5MjM2MTgzMn0.Z-WM1XtqO2CNPB9qmi0ivswAE-MVE8tBrrpqX1i5rRE";
 
-let _supabase: any = null;
+import { SupabaseClient } from '@supabase/supabase-js';
+
+let _supabase: SupabaseClient | null = null;
 
 /**
  * getClient: The single source of truth for Supabase connectivity.
@@ -71,16 +73,30 @@ export const uploadAvatar = async (userId: string, file: File) => {
 };
 
 // Compatibility nodes for existing imports
+export const checkStorageHealth = async () => {
+  const client = getClient();
+  if (!client) return false;
+  try {
+    const { data, error } = await client.storage.getBucket('avatars');
+    if (error) return false;
+    return !!data;
+  } catch {
+    return false;
+  }
+};
+
 export const getSupabase = getClient;
 export const initSupabase = getClient;
 
+import { Profile, WatchHistory } from '../types';
+
 // WATCH HISTORY PROTOCOL (INCOGNITO COMPLIANT)
-export const syncWatchHistory = async (history: any) => {
+export const syncWatchHistory = async (history: WatchHistory) => {
   const client = getClient();
   if (!client) {
     const localHistory = JSON.parse(localStorage.getItem('sekta_history') || '[]');
     const anime_id = history.anime_id;
-    const existingIndex = localHistory.findIndex((h: any) => h.anime_id === anime_id);
+    const existingIndex = localHistory.findIndex((h: WatchHistory) => h.anime_id === anime_id);
     const newEntry = { ...history, updated_at: new Date().toISOString() };
     if (existingIndex > -1) localHistory[existingIndex] = newEntry;
     else localHistory.unshift(newEntry);
@@ -144,7 +160,7 @@ export const signInWithGoogle = async (redirectTo: string) => {
   }
 };
 
-export const syncUserProfile = async (user: any) => {
+export const syncUserProfile = async (user: { id: string }) => {
   const client = getClient();
   if (!client || !user) return null;
   
@@ -159,10 +175,10 @@ export const syncUserProfile = async (user: any) => {
     return null;
   }
   
-  return profile;
+  return profile as Profile | null;
 };
 
-export const syncProfile = async (payload: any) => {
+export const syncProfile = async (payload: Partial<Profile> & { id: string }) => {
   const client = getClient();
   if (!client) return;
   const { error } = await client

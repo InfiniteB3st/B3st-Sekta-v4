@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { getSupabase, getKeyHandshake } from '../services/supabaseClient';
+import { getSupabase, getKeyHandshake, checkStorageHealth } from '../services/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { Shield, Database, X, AlertTriangle, CheckCircle2, Globe, HardDrive, Zap, Info, Activity, Sparkles, MessageSquare, Terminal, History, Trash2, Plus } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { getEskaMilaResponse } from '../services/eskaMilaEngine';
+import { Profile, Addon } from '../types';
 
 interface DevOverlayProps {
   isOpen: boolean;
@@ -20,11 +21,11 @@ export const DevOverlay: React.FC<DevOverlayProps> = ({ isOpen, onClose }) => {
   const { user, session } = useAuth();
   const [view, setView] = useState<'DIAGNOSIS' | 'COORDINATE'>('DIAGNOSIS');
   const [dbStatus, setDbStatus] = useState<'IDLE' | 'OK' | 'ERROR'>('IDLE');
-  const [addons, setAddons] = useState<any[]>([]);
+  const [addons, setAddons] = useState<Addon[]>([]);
   const [networkLatency, setNetworkLatency] = useState<number | null>(null);
   const [probes, setProbes] = useState<Record<string, 'pending' | 'ok' | 'failed'>>({});
   const [conversations, setConversations] = useState<any[]>(() => {
-    return JSON.parse(localStorage.getItem('eska_mila_v3') || '[]');
+    return JSON.parse(localStorage.getItem('eska_mila_sovereign') || '[]');
   });
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
@@ -39,7 +40,7 @@ export const DevOverlay: React.FC<DevOverlayProps> = ({ isOpen, onClose }) => {
         c.id === currentChatId ? { ...c, history: chatHistory } : c
       );
       setConversations(updated);
-      localStorage.setItem('eska_mila_v3', JSON.stringify(updated));
+      localStorage.setItem('eska_mila_sovereign', JSON.stringify(updated));
     }
   }, [chatHistory]);
 
@@ -86,7 +87,7 @@ export const DevOverlay: React.FC<DevOverlayProps> = ({ isOpen, onClose }) => {
     e.stopPropagation();
     const updated = conversations.filter(c => c.id !== id);
     setConversations(updated);
-    localStorage.setItem('eska_mila_v3', JSON.stringify(updated));
+    localStorage.setItem('eska_mila_sovereign', JSON.stringify(updated));
     if (currentChatId === id) {
       if (updated.length > 0) loadChat(updated[0].id);
       else setChatHistory([]);
@@ -100,11 +101,14 @@ export const DevOverlay: React.FC<DevOverlayProps> = ({ isOpen, onClose }) => {
         setDbStatus('ERROR');
         return;
       }
+      
+      const storageOk = await checkStorageHealth();
+      setDbStatus(storageOk ? 'OK' : 'ERROR');
+
       const { data } = await supabase.from('user_addons').select('*');
       if (data) {
         setAddons(data);
         runNetworkProbes(data);
-        setDbStatus('OK');
       }
     } catch {
       setDbStatus('ERROR');
@@ -121,7 +125,7 @@ export const DevOverlay: React.FC<DevOverlayProps> = ({ isOpen, onClose }) => {
     }
   };
 
-  const runNetworkProbes = async (addonList: any[]) => {
+  const runNetworkProbes = async (addonList: Addon[]) => {
     const results: Record<string, 'pending' | 'ok' | 'failed'> = {};
     addonList.forEach(a => results[a.addon_id] = 'pending');
     setProbes(results);
@@ -197,11 +201,34 @@ export const DevOverlay: React.FC<DevOverlayProps> = ({ isOpen, onClose }) => {
                </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-               <MetricBox label="Storage Core" value={dbStatus === 'OK' ? 'MOUNTED' : 'FRACTURED'} status={dbStatus === 'OK' ? 'success' : 'warning'} />
-               <MetricBox label="Auth Kernel" value={user?.email ? 'SYNCED' : 'ANONYMOUS'} status={user?.email ? 'success' : 'warning'} />
-               <MetricBox label="Token Sync" value={Object.keys(localStorage).some(k => k.includes('sb-')) ? 'DETECTED' : 'MISSING'} status={Object.keys(localStorage).some(k => k.includes('sb-')) ? 'success' : 'warning'} />
-               <MetricBox label="Target Env" value={window.location.hostname.includes('vercel') ? 'VERCEL_PROD' : 'DEVELOPMENT'} status="success" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+               <MetricBox label="Auth Node" value={user?.email ? 'OPERATOR_ACTIVE' : 'GUEST_MODE'} status={user?.email ? 'success' : 'warning'} />
+               <MetricBox label="Handshake" value={handshake?.prefix ? 'INTEGRITY_OK' : 'HANDSHAKE_FAIL'} status={handshake?.prefix ? 'success' : 'warning'} />
+               <MetricBox label="Variable Sync" value={import.meta.env.VITE_SUPABASE_URL ? 'VARS_DETECTED' : 'VARS_MISSING'} status={import.meta.env.VITE_SUPABASE_URL ? 'success' : 'warning'} />
+               <MetricBox label="Storage Health" value={dbStatus === 'OK' ? 'CORE_REACHABLE' : 'BUCKET_ERROR'} status={dbStatus === 'OK' ? 'success' : 'warning'} />
+               <MetricBox label="Token Sync" value={Object.keys(localStorage).some(k => k.includes('sb-')) ? 'TOKEN_PRESENT' : 'TOKEN_NULL'} status={Object.keys(localStorage).some(k => k.includes('sb-')) ? 'success' : 'warning'} />
+            </div>
+
+            <div className="bg-[#0a0a0a] border border-primary/20 p-10 space-y-6">
+               <div className="flex items-center gap-4 text-primary">
+                  <Terminal size={20} />
+                  <h3 className="text-sm font-black uppercase tracking-[0.3em]">Active Kernel Errors (Last 5)</h3>
+               </div>
+               <div className="space-y-3">
+                  {((window as any)._sekta_errors?.slice(-5) || []).length > 0 ? (
+                    (window as any)._sekta_errors.slice(-5).map((err: any, i: number) => (
+                      <div key={i} className="flex gap-4 p-4 bg-red-500/5 border border-red-500/20 rounded-lg">
+                        <AlertTriangle size={16} className="text-red-500 shrink-0" />
+                        <span className="text-[10px] text-red-500 font-bold font-mono break-all line-clamp-2">[{err.time}] {err.msg}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="flex gap-4 p-4 bg-green-500/5 border border-green-500/20 rounded-lg">
+                       <CheckCircle2 size={16} className="text-green-500 shrink-0" />
+                       <span className="text-[10px] text-green-500 font-bold uppercase tracking-widest">No active leaks detected.</span>
+                    </div>
+                  )}
+               </div>
             </div>
 
             <div className="bg-[#0a0a0a] border border-primary/10 p-10 space-y-8 relative shadow-inner">
@@ -246,9 +273,9 @@ FOR UPDATE WITH CHECK (
 
             <button 
               onClick={() => setView('COORDINATE')}
-              className="w-full bg-primary hover:bg-white text-black py-10 font-black text-3xl uppercase italic tracking-tighter shadow-[0_20px_50px_rgba(255,177,0,0.15)] active:scale-[0.98] transition-all border-none"
+              className="w-full bg-primary hover:bg-white text-black py-10 font-black text-3xl uppercase italic tracking-tighter shadow-[0_20px_50px_rgba(255,177,0,0.3)] active:scale-[0.98] transition-all border-none animate-pulse hover:animate-none"
             >
-               Initialize Eska Mila Core
+               [ ACCESS ESKA MILA CORE ]
             </button>
           </div>
         </div>
@@ -411,7 +438,7 @@ function MetricBox({ label, value, status }: { label: string, value: string, sta
   );
 }
 
-function ShieldCheck(props: any) {
+function ShieldCheck(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg 
       {...props} 

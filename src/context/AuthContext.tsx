@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { getSupabase, syncUserProfile } from '../services/supabaseClient';
+import { Profile } from '../types';
 
 interface AuthContextType {
   session: Session | null;
   user: User | null;
-  profile: any | null;
+  profile: Profile | null;
   loading: boolean;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -16,18 +17,18 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<any | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async (userId: string, currentUser?: User) => {
     try {
       // MASTER ARCHITECT: Identity Sync Check
-      const activeProfile = await syncUserProfile(currentUser);
+      const activeProfile = await syncUserProfile(currentUser || { id: userId });
       
       if (activeProfile) {
         // ADMIN_FORCE: Hard-coded check for Superuser authority
         if (currentUser?.email === 'wambuamaxwell696@gmail.com') {
-          activeProfile.role = 'admin';
+          activeProfile.is_admin = true;
           console.log("SUPERUSER AUTHENTICATED: B3ST_SEKTA_ADMIN_LEVEL_0");
         }
         setProfile(activeProfile);

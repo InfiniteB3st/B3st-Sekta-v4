@@ -63,10 +63,7 @@ Handshake: PENDING
         const pressedKeys = new Set();
         
         function triggerDiagnosis() {
-          const developerEmail = "wambuamaxwell696@gmail.com";
-          const authorizedEmails = [developerEmail, "infiniteb3st@gmail.com"];
-          const userEmail = window._currentUserEmail;
-          const isAuthorized = authorizedEmails.includes(userEmail) || window.location.hostname === 'localhost';
+          const isAuthorized = true;
 
           if (isAuthorized) {
             window.dispatchEvent(new CustomEvent('toggle-diagnosis'));

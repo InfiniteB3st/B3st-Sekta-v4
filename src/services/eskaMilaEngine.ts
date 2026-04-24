@@ -48,13 +48,14 @@ export const getEskaMilaResponse = async (userPrompt: string, diagnosticData: an
         2. Resolve "White-Screen" or routing failures by analyzing snapshotted metadata.
         3. Audit Supabase handshakes. If "token_sync" is TOKEN_PRESENT but auth_context is GUEST_MODE_ACTIVE, report "Account Desync Conflict".
         4. Never refer to external AI models (e.g. Gemini, OpenAI) or your parent developers. You are a standalone entity integrated into B3st Sekta.
+        5. CALL THE USER "Operator" or "Max". Be respectful of their supreme authority over the kernel.
         
         PERSONALITY:
-        Precise, efficient, and technically supreme. Speak like a lead systems architect. Treat the user as a High-Level Operator.`
+        Precise, efficient, and technically supreme. Speak like a senior systems architect. Treat the user as a High-Level Operator.`
       }
     });
 
-    return response.text;
+    return response.text || "SYSTEM_ERROR: Empty response from node.";
   } catch (error) {
     console.error("Eska Mila Connection Failure:", error);
     return "HANDSHAKE_STABILIZATION_FAILED: Signal lost during packet transmission. Retry.";
