@@ -26,6 +26,50 @@ export const getClient = () => {
   return _supabase;
 };
 
+// HELPER: LOCAL FILE UPLOAD (KERNEL COMPLIANT)
+export const uploadAvatar = async (userId: string, file: File) => {
+  const client = getClient();
+  if (!client) throw new Error("Supabase node unreachable");
+
+  // VALIDATION: Type check
+  const allowedTypes = ['image/png', 'image/jpeg', 'image/webp'];
+  if (!allowedTypes.includes(file.type)) {
+    throw new Error("Invalid format. Use PNG, JPG, or WebP.");
+  }
+
+  // VALIDATION: Size check (2MB)
+  if (file.size > 2 * 1024 * 1024) {
+    throw new Error("File exceeds 2MB limit.");
+  }
+
+  const filePath = `${userId}/profile.png`;
+
+  // 1. Upload to storage (Hierarchical Path for RLS)
+  const { error: uploadError } = await client.storage
+    .from('avatars')
+    .upload(filePath, file, { 
+      upsert: true,
+      contentType: file.type
+    });
+
+  if (uploadError) throw uploadError;
+
+  // 2. Get Public URL
+  const { data: { publicUrl } } = client.storage
+    .from('avatars')
+    .getPublicUrl(filePath);
+
+  // 3. Update Profiles Table
+  const { error: updateError } = await client
+    .from('profiles')
+    .update({ avatar_url: publicUrl })
+    .eq('id', userId);
+
+  if (updateError) throw updateError;
+
+  return publicUrl;
+};
+
 // Compatibility nodes for existing imports
 export const getSupabase = getClient;
 export const initSupabase = getClient;

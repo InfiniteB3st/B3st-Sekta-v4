@@ -60,23 +60,55 @@ Handshake: PENDING
           };
         };
 
-        const keys = new Set();
+        const pressedKeys = new Set();
+        
+        function triggerDiagnosis() {
+          const developerEmail = "wambuamaxwell696@gmail.com";
+          const authorizedEmails = [developerEmail, "infiniteb3st@gmail.com"];
+          const userEmail = window._currentUserEmail;
+          const isAuthorized = authorizedEmails.includes(userEmail) || window.location.hostname === 'localhost';
+
+          if (isAuthorized) {
+            window.dispatchEvent(new CustomEvent('toggle-diagnosis'));
+            
+            // Hard-wired fallback for when React is dead
+            const diag = document.getElementById('sekta-diagnosis');
+            if (diag && !document.querySelector('[data-dev-overlay-active]')) {
+              diag.style.display = 'block';
+              const stats = window.getSystemStats();
+              const logs = document.getElementById('diag-logs');
+              logs.innerText = `
+URL: ${stats.url}
+Tokens: ${stats.tokens.length} detected
+Errors: ${stats.errors.length} detected
+Timestamp: ${stats.timestamp}
+              `.trim();
+            }
+          } else {
+            console.warn("Dev Mode Access Denied: Unauthorized User (" + (userEmail || 'GUEST') + ")");
+          }
+        }
+
         window.addEventListener('keydown', (e) => {
-          keys.add(e.code);
+          pressedKeys.add(e.key.toLowerCase());
+
           // MASTER KERNEL BYPASS: Shift + Q + T
-          if (e.shiftKey && (keys.has('KeyQ') || e.code === 'KeyQ') && (keys.has('KeyT') || e.code === 'KeyT')) {
+          if (
+            pressedKeys.has('shift') && 
+            (pressedKeys.has('q') || e.key.toLowerCase() === 'q') && 
+            (pressedKeys.has('t') || e.key.toLowerCase() === 't')
+          ) {
             e.preventDefault(); 
             e.stopPropagation();
-            window.dispatchEvent(new CustomEvent('toggle-diagnosis'));
+            triggerDiagnosis();
           }
-        }, true); // Use capture phase to bypass component-level stopPropagation
-        
-        window.addEventListener('keyup', (e) => {
-          keys.delete(e.code);
         }, true);
         
-        // Safety: Clear keys when window loses focus
-        window.addEventListener('blur', () => keys.clear());
+        window.addEventListener('keyup', (e) => {
+          pressedKeys.delete(e.key.toLowerCase());
+        }, true);
+        
+        window.addEventListener('blur', () => pressedKeys.clear());
       })();
     </script>
   </body>

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { User, ShieldCheck, ArrowRight, Loader2, Lock, Sparkles, Image as ImageIcon } from 'lucide-react';
+import { User, ShieldCheck, ArrowRight, Loader2, Lock, Sparkles, Image as ImageIcon, Camera } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { getSupabase, syncProfile } from '../services/supabaseClient';
+import { getSupabase, syncProfile, uploadAvatar } from '../services/supabaseClient';
 import { useNavigate } from 'react-router-dom';
 
 /**
@@ -14,18 +14,10 @@ export default function SetupAccount() {
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [selectedAvatar, setSelectedAvatar] = useState('https://i.imgur.com/Heuy9Y8.png'); // Default HiAnime Avatar
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null); 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const avatars = [
-    'https://i.imgur.com/Heuy9Y8.png', 
-    'https://i.imgur.com/5u9B8yN.png',
-    'https://i.imgur.com/8Q6Zl3R.png',
-    'https://i.imgur.com/mYFq8pS.png',
-    'https://i.imgur.com/0v5Ue9n.png',
-    'https://i.imgur.com/lM5a8D9.png'
-  ];
 
   useEffect(() => {
     if (profile?.username) {
@@ -33,21 +25,51 @@ export default function SetupAccount() {
     }
   }, [profile, navigate]);
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        setError('Kernel Error: File exceeds 2MB limit.');
+        return;
+      }
+      const allowedTypes = ['image/png', 'image/jpeg', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        setError('Kernel Error: Invalid format (PNG/JPG/WebP only).');
+        return;
+      }
+      setAvatarFile(file);
+      setAvatarPreview(URL.createObjectURL(file));
+      setError(null);
+    }
+  };
+
   const handleCompleteSetup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
 
+    if (!avatarFile) {
+        setError('Identity Incomplete: Node requires a profile visual.');
+        return;
+    }
+
     if (username.length < 3) {
-      setError('Username invalid (Minimum 3 chars)');
+      setError('Identity Linkage Error: Username too short.');
       return;
     }
 
     setIsSubmitting(true);
     setError(null);
 
+    // KERNEL WATCHDOG: 10s Safety Timeout
+    const timeoutId = setTimeout(() => {
+        setIsSubmitting(false);
+        setError('Kernel Timeout: Connection rejected by database. Verify Storage RLS SQL.');
+    }, 10000);
+
     try {
       const supabase = getSupabase();
-      // 1. Uniqueness Guard
+      
+      // 1. Alias Collision Check
       const { data: existingUser } = await supabase
         .from('profiles')
         .select('username')
@@ -55,34 +77,45 @@ export default function SetupAccount() {
         .maybeSingle();
 
       if (existingUser) {
-        throw new Error('This alias is already claimed.');
+        clearTimeout(timeoutId);
+        throw new Error('Sync Conflict: Alias already bound to another node.');
       }
 
-      // 2. Auth Bridge: Update password for secondary access
+      // 2. Storage Sync (Uses Hierarchical Path)
+      const finalAvatarUrl = await uploadAvatar(user.id, avatarFile);
+
+      // 3. Auth Credential Stabilization
       if (password) {
         const { error: authError } = await supabase.auth.updateUser({ password });
         if (authError) throw authError;
       }
 
-      // 3. Sync Profile Data
-      await syncProfile({
-        id: user.id,
-        username,
-        email: user.email,
-        avatar_url: selectedAvatar,
-        accent_color: '#ffb100'
-      });
+      // 4. Record Finalization
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: user.id,
+          username,
+          email: user.email,
+          avatar_url: finalAvatarUrl,
+          accent_color: '#ffb100',
+          updated_at: new Date().toISOString()
+        });
 
-      // 4. Register Base Addons
+      if (profileError) throw profileError;
+
+      // 5. Node Addon Registration
       await supabase.from('user_addons').upsert([
         { user_id: user.id, addon_id: 'netflix-node', enabled: true },
         { user_id: user.id, addon_id: 'hianime-core', enabled: true }
       ], { onConflict: 'user_id,addon_id' });
 
+      clearTimeout(timeoutId);
       await refreshProfile();
       navigate('/home');
     } catch (err: any) {
-      setError(err.message);
+      clearTimeout(timeoutId);
+      setError(err.message || 'Fatal Kernel Exception.');
     } finally {
       setIsSubmitting(false);
     }
@@ -105,35 +138,39 @@ export default function SetupAccount() {
           <div className="space-y-4">
              <div className="flex items-center gap-3 text-[#ffb100]">
                 <ShieldCheck size={24} className="animate-pulse" />
-                <span className="text-[10px] font-black uppercase tracking-[0.5em] italic">System Initialization</span>
+                <span className="text-[10px] font-black uppercase tracking-[0.5em] italic">Kernel Authorization</span>
              </div>
              <h1 className="text-5xl md:text-7xl font-black italic uppercase tracking-tighter text-white leading-[0.9]">
-               Finalize your <br/>
-               <span className="text-[#ffb100]">Sekta Profile</span>
+               Initialize your <br/>
+               <span className="text-[#ffb100]">Node Access</span>
              </h1>
           </div>
 
           <form onSubmit={handleCompleteSetup} className="space-y-10">
             {/* Avatar Selector */}
-            <div className="space-y-6">
-              <div className="flex items-center gap-4 text-gray-500 font-black uppercase tracking-widest text-[10px] italic">
-                <ImageIcon size={14} />
-                <span>Select Anime Avatar</span>
-              </div>
-              <div className="flex flex-wrap gap-4">
-                {avatars.map((url, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => setSelectedAvatar(url)}
-                    className={`w-20 h-20 rounded-2xl overflow-hidden border-2 transition-all p-1 ${
-                      selectedAvatar === url ? 'border-[#ffb100] scale-110 shadow-2xl shadow-[#ffb100]/20' : 'border-transparent opacity-40 hover:opacity-100'
-                    }`}
-                  >
-                    <img src={url} className="w-full h-full object-cover rounded-xl" alt="" />
-                  </button>
-                ))}
-              </div>
+            <div className="flex flex-col md:flex-row items-center gap-10">
+               <label className="cursor-pointer group relative">
+                  <div className="w-32 h-32 rounded-[2.5rem] bg-black border-2 border-white/10 flex items-center justify-center overflow-hidden transition-all group-hover:border-[#ffb100] shadow-2xl relative">
+                    {avatarPreview ? (
+                      <img src={avatarPreview} className="w-full h-full object-cover" alt="" />
+                    ) : (
+                      <div className="flex flex-col items-center gap-2">
+                        <ImageIcon size={32} className="text-gray-800" />
+                        <span className="text-[8px] font-black text-gray-700 uppercase tracking-widest">Required</span>
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-[#ffb100]/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                       <Camera size={24} className="text-black" />
+                    </div>
+                  </div>
+                  <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
+               </label>
+               <div className="flex-1 space-y-2">
+                  <h3 className="text-xl font-black text-white italic uppercase tracking-tighter">Identity Core</h3>
+                  <p className="text-[10px] font-bold text-gray-700 uppercase tracking-widest max-w-xs leading-relaxed">
+                    Upload a local identity file (PNG/JPG) to enable node visualization.
+                  </p>
+               </div>
             </div>
 
             <div className="grid md:grid-cols-2 gap-6">

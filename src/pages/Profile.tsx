@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { User, Palette, LogOut, Save, Camera, ShieldCheck, Mail, Database, RefreshCw, Loader2, Lock, Chrome, Link as LinkIcon, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { getSupabase, updateUserEmail, updateUserPassword, updateUsername } from '../services/supabaseClient';
+import { getSupabase, updateUserEmail, updateUserPassword, updateUsername, uploadAvatar } from '../services/supabaseClient';
 import ListManager from '../components/ListManager';
 
 const ACCENT_COLORS = [
@@ -22,12 +22,50 @@ export default function Profile() {
   const [newEmail, setNewEmail] = useState(user?.email || '');
   const [newPassword, setNewPassword] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
   useEffect(() => {
     if (profile) setNewUsername(profile.username);
     if (user) setNewEmail(user.email || '');
   }, [profile, user]);
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    // KERNEL VALIDATION
+    if (file.size > 2 * 1024 * 1024) {
+      setMessage({ type: 'error', text: 'Kernel Error: Identity file exceeds 2MB limit.' });
+      return;
+    }
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      setMessage({ type: 'error', text: 'Kernel Error: Invalid identity format (PNG/JPG/WebP only).' });
+      return;
+    }
+
+    setIsUploading(true);
+    setMessage(null);
+
+    // KERNEL WATCHDOG: 10s Timeout
+    const timeoutId = setTimeout(() => {
+        setIsUploading(false);
+        setMessage({ type: 'error', text: 'Kernel Timeout: Verify Storage RLS SQL configuration.' });
+    }, 10000);
+
+    try {
+      await uploadAvatar(user.id, file);
+      clearTimeout(timeoutId);
+      await refreshProfile();
+      setMessage({ type: 'success', text: 'Node Identity synchronized to kernel storage.' });
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      setMessage({ type: 'error', text: err.message || 'Fatal Kernel Sync Exception.' });
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const handleUpdateAccent = async (color: string) => {
     if (!user) return;
@@ -47,12 +85,23 @@ export default function Profile() {
     if (!user || !newUsername) return;
     setIsSaving(true);
     setMessage(null);
+
+    const abortController = new AbortController();
+    const timeoutId = setTimeout(() => {
+        setIsSaving(false);
+        setMessage({ type: 'error', text: 'Kernel Timeout: Database Unreachable.' });
+        abortController.abort();
+    }, 10000);
+
     try {
       await updateUsername(user.id, newUsername);
+      clearTimeout(timeoutId);
       await refreshProfile();
       setMessage({ type: 'success', text: 'Identity updated successfully.' });
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.message });
+      clearTimeout(timeoutId);
+      if (err.name === 'AbortError') return;
+      setMessage({ type: 'error', text: err.message || 'Fatal Database Exception.' });
     } finally {
       setIsSaving(false);
     }
@@ -165,21 +214,24 @@ export default function Profile() {
                       <div className="space-y-16">
                         <div className="flex flex-col md:flex-row items-center gap-16">
                            <div className="relative group">
-                              <div className="w-48 h-48 rounded-[3.5rem] bg-[#0f0f0f] border-8 border-white/5 flex items-center justify-center overflow-hidden shadow-3xl relative">
-                                {profile?.avatar_url ? (
-                                  <img src={profile.avatar_url} className="w-full h-full object-cover" alt="" />
-                                ) : (
-                                  <User className="w-20 h-20 text-primary/10" />
-                                )}
-                                <div className="absolute inset-0 bg-primary/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
-                                   <Camera className="w-10 h-10 text-black shadow-2xl" />
+                              <label className="cursor-pointer">
+                                <div className="w-48 h-48 rounded-[3.5rem] bg-[#0f0f0f] border-8 border-white/5 flex items-center justify-center overflow-hidden shadow-3xl relative">
+                                  {profile?.avatar_url ? (
+                                    <img src={profile.avatar_url} className="w-full h-full object-cover" alt="" />
+                                  ) : (
+                                    <User className="w-20 h-20 text-primary/10" />
+                                  )}
+                                  <div className="absolute inset-0 bg-primary/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                     {isUploading ? <Loader2 className="animate-spin text-black" size={40} /> : <Camera className="w-10 h-10 text-black shadow-2xl" />}
+                                  </div>
                                 </div>
-                              </div>
+                                <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} disabled={isUploading} />
+                              </label>
                            </div>
                            <div className="flex-1 space-y-4">
-                              <h2 className="text-4xl font-black text-white italic uppercase tracking-tighter">Edit Username</h2>
+                              <h2 className="text-4xl font-black text-white italic uppercase tracking-tighter">Edit Identity</h2>
                               <p className="text-[10px] font-bold text-gray-700 uppercase tracking-widest max-w-sm leading-relaxed">
-                                 Your username is unique and identifies you in the community.
+                                 Upload a custom avatar from your device to identify your node in the Sekta.
                               </p>
                            </div>
                         </div>

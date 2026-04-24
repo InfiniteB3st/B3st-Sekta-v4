@@ -52,6 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     getSupabase().auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      (window as any)._currentUserEmail = session?.user?.email;
       if (session?.user) {
         await fetchProfile(session.user.id, session.user);
       }
@@ -61,6 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = getSupabase().auth.onAuthStateChange(async (event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
+      (window as any)._currentUserEmail = session?.user?.email;
       
       // TOKEN_NULL detection while session purportedly exists
       if (event === 'TOKEN_REFRESHED' && !session) {

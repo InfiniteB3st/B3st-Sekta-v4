@@ -24,7 +24,7 @@ export const DevOverlay: React.FC<DevOverlayProps> = ({ isOpen, onClose }) => {
   const [networkLatency, setNetworkLatency] = useState<number | null>(null);
   const [probes, setProbes] = useState<Record<string, 'pending' | 'ok' | 'failed'>>({});
   const [conversations, setConversations] = useState<any[]>(() => {
-    return JSON.parse(localStorage.getItem('eska_mila_memory') || '[]');
+    return JSON.parse(localStorage.getItem('eska_mila_v3') || '[]');
   });
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
@@ -39,12 +39,13 @@ export const DevOverlay: React.FC<DevOverlayProps> = ({ isOpen, onClose }) => {
         c.id === currentChatId ? { ...c, history: chatHistory } : c
       );
       setConversations(updated);
-      localStorage.setItem('eska_mila_memory', JSON.stringify(updated));
+      localStorage.setItem('eska_mila_v3', JSON.stringify(updated));
     }
   }, [chatHistory]);
 
   useEffect(() => {
     if (isOpen) {
+      setView('DIAGNOSIS'); // Always reset to Diagnosis on open
       loadSystemState();
       measureLatency();
       if (conversations.length === 0) {
@@ -59,10 +60,10 @@ export const DevOverlay: React.FC<DevOverlayProps> = ({ isOpen, onClose }) => {
     const id = Date.now().toString();
     const newChat = {
       id,
-      title: `Conversation ${new Date().toLocaleDateString()}`,
+      title: `Workspace_${id.slice(-4)}`,
       history: [{
         role: 'assistant',
-        content: "I am Eska Mila. Omniscient interface initialized. I have complete visibility into the B3st Sekta kernel. How can I assist with your architecture?",
+        content: "I am Eska Mila. Omniscient interface v3.0 initialized. I see every line of the Sekta kernel. Root access confirmed. How shall we refine the architecture?",
         time: new Date().toLocaleTimeString()
       }]
     };
@@ -85,7 +86,7 @@ export const DevOverlay: React.FC<DevOverlayProps> = ({ isOpen, onClose }) => {
     e.stopPropagation();
     const updated = conversations.filter(c => c.id !== id);
     setConversations(updated);
-    localStorage.setItem('eska_mila_memory', JSON.stringify(updated));
+    localStorage.setItem('eska_mila_v3', JSON.stringify(updated));
     if (currentChatId === id) {
       if (updated.length > 0) loadChat(updated[0].id);
       else setChatHistory([]);
@@ -155,8 +156,15 @@ export const DevOverlay: React.FC<DevOverlayProps> = ({ isOpen, onClose }) => {
       handshake: handshake?.prefix + "...",
       addons: addons?.map(a => ({ name: a?.name, status: probes?.[a?.addon_id] || 'unknown' })),
       sessionActive: !!session,
+      storage_status: 'avatars_bucket_initialized',
+      storage_path_convention: '[user_id]/profile.png',
+      auth_state: session ? 'AUTHENTICATED' : 'ANONYMOUS',
+      token_sync: Object.keys(localStorage).filter(k => k.includes('sb-')),
+      kernel_version: '3.0.4',
+      watchdog_timeout: '10000ms'
     };
 
+    console.log("Kernel: Injecting Diagnostic Feed to Eska Mila...");
     const response = await getEskaMilaResponse(input, diagnosticData);
     
     setChatHistory(prev => [...prev, {
@@ -190,32 +198,48 @@ export const DevOverlay: React.FC<DevOverlayProps> = ({ isOpen, onClose }) => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-               <MetricBox label="Handshake" value={handshake?.prefix ? 'CONNECTED' : 'FRACTURED'} status={handshake?.prefix ? 'success' : 'warning'} />
-               <MetricBox label="Auth Kernel" value={user?.email ? user.email.split('@')[0] : 'GUEST_MODE'} status={user?.email ? 'success' : 'warning'} />
-               <MetricBox label="Token Sync" value={Object.keys(localStorage).some(k => k.includes('sb-')) ? 'SYNCED' : 'MISSING'} status={Object.keys(localStorage).some(k => k.includes('sb-')) ? 'success' : 'warning'} />
-               <MetricBox label="Vercel Origin" value={window.location.hostname.includes('vercel') ? 'VERCEL' : 'LOCAL'} status="success" />
+               <MetricBox label="Storage Core" value={dbStatus === 'OK' ? 'MOUNTED' : 'FRACTURED'} status={dbStatus === 'OK' ? 'success' : 'warning'} />
+               <MetricBox label="Auth Kernel" value={user?.email ? 'SYNCED' : 'ANONYMOUS'} status={user?.email ? 'success' : 'warning'} />
+               <MetricBox label="Token Sync" value={Object.keys(localStorage).some(k => k.includes('sb-')) ? 'DETECTED' : 'MISSING'} status={Object.keys(localStorage).some(k => k.includes('sb-')) ? 'success' : 'warning'} />
+               <MetricBox label="Target Env" value={window.location.hostname.includes('vercel') ? 'VERCEL_PROD' : 'DEVELOPMENT'} status="success" />
             </div>
 
             <div className="bg-[#0a0a0a] border border-primary/10 p-10 space-y-8 relative shadow-inner">
                <div className="flex items-center gap-4 border-b border-white/5 pb-6">
                   <Database className="text-primary" />
-                  <h3 className="text-xl font-black uppercase italic text-white tracking-widest">Root Recovery Script</h3>
+                  <h3 className="text-xl font-black uppercase italic text-white tracking-widest">Bucket Security Protocols</h3>
                </div>
-               <p className="text-gray-500 text-sm leading-relaxed font-medium">Execute this SQL in Supabase SQL Editor to synchronize auth profiles.</p>
+               <p className="text-gray-500 text-sm leading-relaxed font-medium">Execute this SQL to unlock the avatars bucket and configure RLS folders.</p>
                <div className="relative group">
                   <pre className="bg-black p-8 text-[12px] overflow-x-auto text-primary/80 border border-primary/20 font-bold leading-relaxed selection:bg-primary/20">
-{`CREATE OR REPLACE FUNCTION handle_new_user() RETURNS trigger AS $$
-BEGIN
-  INSERT INTO public.profiles (id, username, accent_color)
-  VALUES (new.id, new.raw_user_meta_data->>'username', '#ffb100');
-  RETURN new;
-END; $$ LANGUAGE plpgsql SECURITY DEFINER;`}
+{`-- 1. BUCKET INITIALIZATION
+INSERT INTO storage.buckets (id, name, public) 
+VALUES ('avatars', 'avatars', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- 2. PUBLIC READ ACCESS
+CREATE POLICY "Allow Public Select" ON storage.objects 
+FOR SELECT USING (bucket_id = 'avatars');
+
+-- 3. INDIVIDUAL FOLDER UPLOAD
+CREATE POLICY "Allow Individual Upload" ON storage.objects 
+FOR INSERT WITH CHECK (
+  bucket_id = 'avatars' AND 
+  auth.uid()::text = (storage.foldername(name))[1]
+);
+
+-- 4. INDIVIDUAL FOLDER UPDATE
+CREATE POLICY "Allow Individual Update" ON storage.objects 
+FOR UPDATE WITH CHECK (
+  bucket_id = 'avatars' AND 
+  auth.uid()::text = (storage.foldername(name))[1]
+);`}
                   </pre>
                   <button 
-                    onClick={() => navigator.clipboard.writeText(`CREATE OR REPLACE FUNCTION handle_new_user() RETURNS trigger AS $$\nBEGIN\n  INSERT INTO public.profiles (id, username, accent_color)\n  VALUES (new.id, new.raw_user_meta_data->>'username', '#ffb100');\n  RETURN new;\nEND; $$ LANGUAGE plpgsql SECURITY DEFINER;`)}
+                    onClick={() => navigator.clipboard.writeText(`INSERT INTO storage.buckets (id, name, public) VALUES ('avatars', 'avatars', true) ON CONFLICT (id) DO NOTHING; CREATE POLICY "Allow Public Select" ON storage.objects FOR SELECT USING (bucket_id = 'avatars'); CREATE POLICY "Allow Individual Upload" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]); CREATE POLICY "Allow Individual Update" ON storage.objects FOR UPDATE WITH CHECK (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);`)}
                     className="absolute top-4 right-4 p-3 bg-primary/10 hover:bg-primary text-primary hover:text-black border border-primary/20 rounded-none transition-all text-[10px] font-black uppercase"
                   >
-                    Copy Script
+                    Copy Storage SQL
                   </button>
                </div>
             </div>

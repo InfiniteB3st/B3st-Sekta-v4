@@ -129,7 +129,22 @@ function AppContent() {
     console.log("Kernel: Pre-flight sequence initiated...");
     
     const handleNativeToggle = () => {
-      setShowDiagnostics(prev => !prev);
+      const devEmail = "wambuamaxwell696@gmail.com";
+      const isAuthorized = user?.email === devEmail || user?.email === 'infiniteb3st@gmail.com' || (window.location.hostname === 'localhost');
+      
+      if (isAuthorized) {
+        setShowDiagnostics(prev => !prev);
+        if (!showDiagnostics) {
+          console.log("--- STARTING SITE DIAGNOSIS ---");
+          console.table({
+            timestamp: new Date().toISOString(),
+            url: window.location.href,
+            status: "Optimizing kernel routing..."
+          });
+        }
+      } else {
+        console.warn("Dev Mode Access Denied: Unauthorized User.");
+      }
     };
 
     window.addEventListener('toggle-diagnosis', handleNativeToggle);
