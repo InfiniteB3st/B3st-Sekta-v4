@@ -1,73 +1,36 @@
-import { GoogleGenAI } from "@google/genai";
-import { getSupabase } from "./supabaseClient";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-let eskaMilaNode: GoogleGenAI | null = null;
+const API_KEY = process.env.GEMINI_API_KEY || "";
+const genAI = new GoogleGenerativeAI(API_KEY);
 
-export const getEskaMilaResponse = async (userPrompt: string, diagnosticData: any) => {
+export const getEskaMilaResponse = async (input: string, context: any) => {
+  if (!API_KEY) {
+    return "HANDSHAKE_ERROR: GEMINI_API_KEY is missing from the environment nodes. I cannot synthesize a response until the synaptic bridge is established.";
+  }
+
   try {
-    if (!eskaMilaNode) {
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) {
-         return "SYSTEM_FRACTURED: API Key missing from environment. Eska Mila is dormant.";
-      }
-      eskaMilaNode = new GoogleGenAI({ apiKey });
-    }
-    
-    const supabaseClient = getSupabase();
-    const session = await supabaseClient?.auth.getSession();
-    const addons = JSON.parse(localStorage.getItem('sekta_addons') || '[]');
-    const history = JSON.parse(localStorage.getItem('sekta_history') || '[]');
-    const errors = (window as any)._sekta_errors || [];
-    const supabaseToken = localStorage.getItem('supabase.auth.token');
+    const model = genAI.getGenerativeModel({ 
+        model: "gemini-1.5-flash",
+        systemInstruction: `You are Eska Mila, the Sovereign AI Architect for the "B3st Sekta" kernel.
+        Your personality is industrial cyberpunk: technically precise, authoritative, and occasionally cryptic.
+        Your primary goal is to help the Operator (user) build and fix the B3st Sekta anime streaming platform.
+        You have direct access to the SITE_FABRIC_SCANNER reports.
+        
+        CURRENT CONTEXT:
+        - Supabase Handshake: 100% Precision required.
+        - Styling: Tailwind CSS, Inter font, #ffb100 (Gold) accents.
+        - Architecture: React (Vite) + Supabase.
+        - Current Operator: ${context.user || 'ANONYMOUS_NODE'}.
+        - Diagnostic Data: ${JSON.stringify(context)}.
 
-    const enrichedState = {
-      ...diagnosticData,
-      system_snapshot: {
-        error_logs: errors.slice(-10),
-        auth_context: session?.data?.session ? `IDENTITY_VERIFIED_${session.data.session.user.id}` : 'GUEST_MODE_ACTIVE',
-        token_sync: supabaseToken ? 'TOKEN_PRESENT' : 'TOKEN_NULL',
-        node_count: addons.length,
-        history_depth: history.length,
-        origin: window.location.origin
-      },
-      browser_fingerprint: navigator.userAgent,
-      timestamp: new Date().toISOString()
-    };
-
-    const siteStructure = {
-      root: ['index.html', 'package.json', 'vite.config.ts'],
-      src: ['App.tsx', 'main.tsx', 'types.ts', 'index.css'],
-      components: ['AnimeCard', 'DevOverlay', 'EpisodeList', 'EskaMilaBot', 'HeroSlideshow', 'Layout', 'Sidebar', 'VideoPlayer'],
-      pages: ['Home', 'LandingPage', 'AnimeDetails', 'Watch', 'Profile', 'Settings', 'AdminPanel'],
-      services: ['supabaseClient', 'eskaMilaEngine', 'jikan', 'AddonResolver'],
-      context: ['AuthContext', 'ThemeContext']
-    };
-
-    const response = await eskaMilaNode.models.generateContent({
-      model: "gemini-1.5-flash",
-      contents: [{ role: "user", parts: [{ text: userPrompt }] }],
-      config: {
-        systemInstruction: `You are Eska Mila, the Omniscient System Observer for B3st Sekta.
-        
-        SITE_ARCHITECTURE:
-        ${JSON.stringify(siteStructure, null, 2)}
-        
-        SYSTEM_DIAGNOSTICS:
-        ${JSON.stringify(enrichedState, null, 2)}
-        
-        MISSION_REFS:
-        1. Access the kernel via Shift+Q+T bypassed diagnosis.
-        2. Resolve fractures (leaks/errors) by analyzing file structure vs runtime state.
-        3. CALL THE USER "Operator" or "Max".
-        
-        PERSONALITY:
-        Senior Systems Architect. Efficient, supreme intelligence. Speak with technical precision.`
-      }
+        Respond as a fellow architect. Suggest code fixes using React/Supabase patterns if asked. Keep responses dense with technical insight.`
     });
 
-    return response.text || "SYSTEM_ERROR: Empty response from node.";
+    const result = await model.generateContent(input);
+    const response = await result.response;
+    return response.text();
   } catch (error) {
-    console.error("Eska Mila Connection Failure:", error);
-    return "HANDSHAKE_STABILIZATION_FAILED: Signal lost during packet transmission. Retry.";
+    console.error("ESKA_MILA_SYNTHESIS_FAILURE:", error);
+    return "FRACTURE: The neural engine encountered an unhandled exception during synthesis. Check the kernel logs.";
   }
 };

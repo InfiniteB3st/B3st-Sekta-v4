@@ -1,6 +1,6 @@
 import React, { useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { Database, ServerCrash } from 'lucide-react';
+import { Database, ServerCrash, Activity } from 'lucide-react';
 import { initSupabase } from './services/supabaseClient';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -126,91 +126,72 @@ function AppContent() {
   const [addons, setAddons] = React.useState<any[]>([]);
 
   useEffect(() => {
-    const handleNativeToggle = () => {
-      // MASTER GATE: Strictly toggle Diagnosis only
-      setShowDiagnostics(prev => !prev);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // MASTER KERNEL BYPASS: Shift + Q + T (Universal Shortcut Override)
+      if (e.shiftKey && e.code === 'KeyQ') {
+        const catchT = (t: KeyboardEvent) => {
+          if (t.code === 'KeyT') {
+            t.preventDefault();
+            t.stopPropagation();
+            setShowDiagnostics(prev => !prev);
+          }
+        };
+        window.addEventListener('keydown', catchT, { once: true });
+        setTimeout(() => window.removeEventListener('keydown', catchT), 500);
+      }
     };
+    window.addEventListener('keydown', handleKeyDown);
 
-    window.addEventListener('toggle-diagnosis', handleNativeToggle);
-
-    // CAPTURE SYSTEM ERRORS
+    // CAPTURE SYSTEM ERRORS FOR FABRIC SCANNER
     const originalError = console.error;
-    (window as any)._sekta_errors = [];
-    const customError = (...args: any[]) => {
-      (window as any)._sekta_errors.push({
-        msg: args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' '),
-        time: new Date().toISOString()
-      });
+    (window as any)._sekta_errors = (window as any)._sekta_errors || [];
+    console.error = (...args: any[]) => {
+      const msg = args.map(a => typeof a === 'object' ? (a instanceof Error ? a.message : JSON.stringify(a)) : String(a)).join(' ');
+      (window as any)._sekta_errors.push({ msg, time: new Date().toISOString() });
       if ((window as any)._sekta_errors.length > 50) (window as any)._sekta_errors.shift();
       originalError.apply(console, args);
     };
-    console.error = customError;
 
-    // Inject global styles to ensure Branding consistency
+    // Global Brand Sync
     const style = document.createElement('style');
     style.innerHTML = `
-      .logo-b3st { color: #ffffff; }
-      .logo-sekta { color: #ffb100; }
-      .accent-primary { color: #ffb100; }
+      :root { --primary: #ffb100; --primary-rgb: 255, 177, 0; }
       .bg-primary { background-color: #ffb100 !important; }
-      .border-primary { border-color: #ffb100 !important; }
       .text-primary { color: #ffb100 !important; }
-      :root { 
-        --primary: #ffb100;
-        --primary-rgb: 255, 177, 0;
-      }
-      .accent-yellow { color: #ffb100; }
-      .bg-yellow { background-color: #ffb100; }
-      
-      /* Global Scraper UI Improvements */
-      .source-active { border-color: #ffb100; background: rgba(255, 177, 0, 0.1); }
-      .source-inactive { border-color: rgba(255, 255, 255, 0.05); }
+      .border-primary { border-color: #ffb100 !important; }
+      .glow-primary { box-shadow: 0 0 20px rgba(255, 177, 0, 0.4); }
     `;
     document.head.appendChild(style);
     document.title = "B3st Sekta";
 
-    // AUTH OBSERVER & DB PROBE
+    // AUTH & DB HANDSHAKE
     const checkDb = async () => {
       const supabase = initSupabase();
-      if (!supabase) {
-        setIsDbOffline(true);
-        return;
-      }
+      if (!supabase) return setIsDbOffline(true);
       try {
         const { error } = await supabase.from('profiles').select('count', { count: 'exact', head: true }).limit(1);
-        if (error && error.code === '401') setIsDbOffline(true);
-        
-        const { data } = await supabase.from('user_addons').select('*');
-        if (data) setAddons(data);
-      } catch {
-        setIsDbOffline(true);
-      }
+        if (error && (error.code === '401' || error.code === 'P0001')) setIsDbOffline(true);
+        const { data: adds } = await supabase.from('user_addons').select('*');
+        if (adds) setAddons(adds);
+      } catch { setIsDbOffline(true); }
     };
 
     checkDb();
 
-    // Listen for Auth Changes
-    const supabaseClient = initSupabase();
-    let subscription: { unsubscribe: () => void } | null = null;
-    
-    if (supabaseClient) {
-      const { data } = supabaseClient.auth.onAuthStateChange((event, session) => {
-         console.log(`AUTH_EVENT: ${event}`, session?.user?.id);
-         if (event === 'SIGNED_IN' || event === 'USER_UPDATED' || event === 'INITIAL_SESSION') {
-           checkDb();
-         }
-         if (event === 'SIGNED_OUT') {
-           window.location.href = '/login';
-         }
-      });
-      subscription = data.subscription;
-    }
+    window.addEventListener('keydown', handleKeyDown);
 
-    return () => {
-      subscription?.unsubscribe();
-      window.removeEventListener('toggle-diagnosis', handleNativeToggle);
-      console.error = originalError;
-    };
+    const supabaseClient = initSupabase();
+    if (supabaseClient) {
+      const { data } = supabaseClient.auth.onAuthStateChange((event) => {
+         if (['SIGNED_IN', 'USER_UPDATED', 'INITIAL_SESSION'].includes(event)) checkDb();
+         if (event === 'SIGNED_OUT') window.location.href = '/login';
+      });
+      return () => {
+        data.subscription.unsubscribe();
+        window.removeEventListener('keydown', handleKeyDown);
+        console.error = originalError;
+      };
+    }
   }, []);
 
   useEffect(() => {
@@ -329,6 +310,36 @@ function AppContent() {
         </Gatekeeper>
       </MasterGuard>
       <Suspense fallback={null}>
+        {user?.email?.toLowerCase() === 'wambuamaxwell696@gmail.com' && (
+          <button 
+            onClick={() => setShowEskaMila(prev => !prev)}
+            style={{
+              position: 'fixed',
+              top: '20px',
+              right: '250px', // Shift left to not overlap if top-right button in overlay is present? 
+              // Actually, user wants it at Top Right. I'll put it at top 20, right 20.
+              zIndex: 999999,
+              padding: '12px 24px',
+              background: 'linear-gradient(45deg, #ffb100 0%, #ff8c00 100%)',
+              color: 'black',
+              borderRadius: '12px',
+              fontWeight: '900',
+              textTransform: 'uppercase',
+              letterSpacing: '0.1em',
+              boxShadow: '0 0 30px rgba(255,177,0,0.5)',
+              border: '2px solid rgba(255,255,255,0.2)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+            }}
+            className="hover:scale-105 active:scale-95 animate-pulse hover:animate-none"
+          >
+            <Activity size={18} />
+            Eska Mila AI
+          </button>
+        )}
         <DiagnosisOverlay 
           isOpen={showDiagnostics} 
           onClose={() => setShowDiagnostics(false)} 
