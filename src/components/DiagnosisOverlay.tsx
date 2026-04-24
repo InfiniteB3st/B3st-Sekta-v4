@@ -205,8 +205,18 @@ export const DiagnosisOverlay: React.FC<DiagnosisOverlayProps> = ({ isOpen, onCl
             <MetricBox label="PING" value={`${networkLatency}MS`} status="success" />
             <MetricBox label="ORIGIN_URL" value={window.location.hostname.toUpperCase()} status="success" />
             <MetricBox label="AUTH_STATE" value={user?.email ? 'OPERATOR' : 'GUEST'} status={user?.email ? 'success' : 'warning'} />
-            <MetricBox label="TOKEN_SYNC" value={Object.keys(localStorage).some(k => k.includes('sb-')) ? 'PRESENT' : 'NULL'} status={Object.keys(localStorage).some(k => k.includes('sb-')) ? 'success' : 'warning'} />
+            <MetricBox 
+              label="TOKEN_SYNC" 
+              value={getKeyHandshake().isKeyPresent ? (Object.keys(localStorage).some(k => k.includes('sb-')) ? 'PRESENT' : 'HUB_READY') : 'REACTION_REQUIRED'} 
+              status={getKeyHandshake().isKeyPresent ? 'success' : 'error'} 
+            />
          </div>
+         {!getKeyHandshake().isKeyPresent && (
+            <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-xl flex items-center gap-4 animate-pulse">
+               <AlertTriangle className="text-red-500" size={20} />
+               <span className="text-red-500 font-bold uppercase text-[12px] tracking-widest">REACTION_REQUIRED: CHECK VERCEL VARS - VITE_SUPABASE_ANON_KEY IS MISSING</span>
+            </div>
+         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
            <MetricBox label="Nodes Online" value={vitals.onlineNodes.toLocaleString()} status="success" />
@@ -258,17 +268,18 @@ export const DiagnosisOverlay: React.FC<DiagnosisOverlayProps> = ({ isOpen, onCl
   );
 };
 
-function MetricBox({ label, value, status }: { label: string, value: string, status: 'success' | 'warning' | 'idle' }) {
+function MetricBox({ label, value, status }: { label: string, value: string, status: 'success' | 'warning' | 'idle' | 'error' }) {
   return (
     <div className="bg-black/50 p-8 rounded-[2rem] border border-white/5 hover:border-primary/20 transition-all group flex flex-col justify-between h-32">
        <span className="text-gray-700 text-[10px] font-black uppercase tracking-widest group-hover:text-primary transition-colors">{label}</span>
        <div className="flex items-center justify-between">
           <span className={cn("text-2xl font-black italic tracking-tighter uppercase", 
-            status === 'success' ? "text-white" : status === 'warning' ? "text-yellow-500" : "text-gray-500"
+            status === 'success' ? "text-white" : status === 'warning' ? "text-yellow-500" : status === 'error' ? "text-red-500" : "text-gray-500"
           )}>{value}</span>
           <div className={cn("w-3 h-3 rounded-full", 
             status === 'success' ? "bg-green-500 shadow-[0_0_15px_rgba(34,197,94,0.5)]" : 
-            status === 'warning' ? "bg-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.5)]" : "bg-white/10"
+            status === 'warning' ? "bg-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.5)]" : 
+            status === 'error' ? "bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.5)]" : "bg-white/10"
           )} />
        </div>
     </div>

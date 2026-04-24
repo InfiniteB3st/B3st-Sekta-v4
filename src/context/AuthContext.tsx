@@ -50,7 +50,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       document.documentElement.style.setProperty('--primary', localAccent);
     }
 
-    getSupabase().auth.getSession().then(async ({ data: { session } }) => {
+    const client = getSupabase();
+    if (!client) {
+      setLoading(false);
+      return;
+    }
+
+    client.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       (window as any)._currentUserEmail = session?.user?.email;
@@ -60,7 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     });
 
-    const { data: { subscription } } = getSupabase().auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = client.auth.onAuthStateChange(async (event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       (window as any)._currentUserEmail = session?.user?.email;
@@ -85,7 +91,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = async () => {
-    await getSupabase().auth.signOut();
+    const client = getSupabase();
+    if (client) {
+      await client.auth.signOut();
+    }
   };
 
   const refreshProfile = async () => {

@@ -3,23 +3,23 @@ import { createClient } from '@supabase/supabase-js';
 const SB_URL = (import.meta.env.VITE_SUPABASE_URL || import.meta.env.NEXT_PUBLIC_SUPABASE_URL || import.meta.env.REACT_APP_SUPABASE_URL || "https://wnjdlqqlmzjklxcgiqap.supabase.co").trim().replace(/\/$/, "");
 const SB_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || import.meta.env.REACT_APP_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InduamRscXFsbXpqa2x4Y2dpcWFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3ODU4MzIsImV4cCI6MjA5MjM2MTgzMn0.Z-WM1XtqO2CNPB9qmi0ivswAE-MVE8tBrrpqX1i5rRE").trim();
 
+if (!SB_URL || SB_URL.includes("your-project-id") || !SB_KEY || SB_KEY.includes("your-anon-key")) {
+  console.error("KERNEL_CRITICAL: API Keys missing or invalid in environment! Handshake failed.");
+}
+
 import { SupabaseClient } from '@supabase/supabase-js';
 
 let _supabase: SupabaseClient | null = null;
 
 /**
  * getClient: The single source of truth for Supabase connectivity.
- * Returns null if initialization fails, preventing the white-screen crash.
  */
 export const getClient = () => {
   if (typeof window === 'undefined') return null;
   
   if (!_supabase) {
+    if (!SB_URL || !SB_KEY) return null;
     try {
-      if (!SB_KEY || SB_KEY.includes('REPLACE')) {
-        return null;
-      }
-      // KERNEL_FIX: Explicitly define headers to solve the "No API key found" Handshake error
       _supabase = createClient(SB_URL, SB_KEY, {
         global: {
           headers: { 'apikey': SB_KEY },
@@ -148,14 +148,15 @@ export const updateUsername = async (userId: string, username: string) => {
   return data;
 };
 
-export const signInWithGoogle = async (redirectTo: string) => {
+export const signInWithGoogle = async (redirectTo?: string) => {
   const client = getClient();
   if (!client) throw new Error("Supabase not initialized");
+  const finalRedirect = redirectTo || window.location.origin;
   try {
     const { error } = await client.auth.signInWithOAuth({
       provider: 'google',
       options: { 
-        redirectTo,
+        redirectTo: finalRedirect,
         queryParams: { access_type: 'offline', prompt: 'consent' }
       }
     });
@@ -223,5 +224,6 @@ export const signUpUser = async (email: string, pass: string, username: string) 
 
 export const getKeyHandshake = () => ({
   prefix: SB_KEY.substring(0, 5),
-  suffix: SB_KEY.substring(SB_KEY.length - 5)
+  suffix: SB_KEY.substring(SB_KEY.length - 5),
+  isKeyPresent: !!SB_KEY && !SB_KEY.includes('REPLACE')
 });

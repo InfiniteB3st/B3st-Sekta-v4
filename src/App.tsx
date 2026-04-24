@@ -126,21 +126,23 @@ function AppContent() {
   const [addons, setAddons] = React.useState<any[]>([]);
 
   useEffect(() => {
+    const pressedKeys = new Set<string>();
     const handleKeyDown = (e: KeyboardEvent) => {
-      // MASTER KERNEL BYPASS: Shift + Q + T (Universal Shortcut Override)
-      if (e.shiftKey && e.code === 'KeyQ') {
-        const catchT = (t: KeyboardEvent) => {
-          if (t.code === 'KeyT') {
-            t.preventDefault();
-            t.stopPropagation();
-            setShowDiagnostics(prev => !prev);
-          }
-        };
-        window.addEventListener('keydown', catchT, { once: true });
-        setTimeout(() => window.removeEventListener('keydown', catchT), 500);
+      pressedKeys.add(e.code);
+      // MASTER KERNEL BYPASS: Shift + Q + T (Universal Shortcut)
+      if ((pressedKeys.has('ShiftLeft') || pressedKeys.has('ShiftRight')) && 
+          pressedKeys.has('KeyQ') && pressedKeys.has('KeyT')) {
+        e.preventDefault();
+        setShowDiagnostics(prev => !prev);
       }
     };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      pressedKeys.delete(e.code);
+    };
+
     window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', () => pressedKeys.clear());
 
     // CAPTURE SYSTEM ERRORS FOR FABRIC SCANNER
     const originalError = console.error;
@@ -178,8 +180,6 @@ function AppContent() {
 
     checkDb();
 
-    window.addEventListener('keydown', handleKeyDown);
-
     const supabaseClient = initSupabase();
     if (supabaseClient) {
       const { data } = supabaseClient.auth.onAuthStateChange((event) => {
@@ -189,6 +189,7 @@ function AppContent() {
       return () => {
         data.subscription.unsubscribe();
         window.removeEventListener('keydown', handleKeyDown);
+        window.removeEventListener('keyup', handleKeyUp);
         console.error = originalError;
       };
     }
