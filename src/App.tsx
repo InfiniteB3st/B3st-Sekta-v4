@@ -21,7 +21,8 @@ import { jikanService } from './services/jikan';
 import { HelpCenter, DMCA, Terms, Privacy } from './components/FooterPages';
 import { AlertTriangle, RefreshCw, Loader2 } from 'lucide-react';
 
-const DevOverlay = lazy(() => import('./components/DevOverlay').then(module => ({ default: module.DevOverlay })));
+const DiagnosisOverlay = lazy(() => import('./components/DiagnosisOverlay').then(module => ({ default: module.DiagnosisOverlay })));
+const EskaMila = lazy(() => import('./components/EskaMila').then(module => ({ default: module.EskaMila })));
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
@@ -120,29 +121,14 @@ function MasterGuard({ children }: { children: React.ReactNode }) {
 function AppContent() {
   const { user } = useAuth();
   const [showDiagnostics, setShowDiagnostics] = React.useState(false);
+  const [showEskaMila, setShowEskaMila] = React.useState(false);
   const [isDbOffline, setIsDbOffline] = React.useState(false);
   const [addons, setAddons] = React.useState<any[]>([]);
 
-  const isAdmin = user?.email === 'wambuamaxwell696@gmail.com';
-
   useEffect(() => {
-    console.log("Kernel: Pre-flight sequence initiated...");
-    
     const handleNativeToggle = () => {
-      // MASTER GATE: Temporarily accessible to ALL users until account issue is 100% resolved
-      const isAuthorized = true;
-      
-      if (isAuthorized) {
-        setShowDiagnostics(prev => !prev);
-        if (!showDiagnostics) {
-          console.log("--- STARTING SITE DIAGNOSIS ---");
-          console.table({
-            timestamp: new Date().toISOString(),
-            url: window.location.href,
-            status: "Optimizing kernel routing..."
-          });
-        }
-      }
+      // MASTER GATE: Strictly toggle Diagnosis only
+      setShowDiagnostics(prev => !prev);
     };
 
     window.addEventListener('toggle-diagnosis', handleNativeToggle);
@@ -279,11 +265,26 @@ function AppContent() {
             onClick={() => setShowDiagnostics(true)}
             className="bg-white/5 text-white/40 px-8 py-5 rounded-[2rem] font-black uppercase tracking-widest text-[10px] border border-white/10 hover:text-white transition-all"
           >
-            OPEN KERNEL LOGS
+            OPEN COMMAND CENTER
           </button>
         </div>
         <Suspense fallback={null}>
-          <DiagnosticWrapper isOpen={showDiagnostics} onClose={() => setShowDiagnostics(false)} />
+          <DiagnosisOverlay 
+            isOpen={showDiagnostics} 
+            onClose={() => setShowDiagnostics(false)} 
+            onInitializeCore={() => {
+              setShowDiagnostics(false);
+              setShowEskaMila(true);
+            }}
+          />
+          <EskaMila 
+            isOpen={showEskaMila} 
+            onClose={() => setShowEskaMila(false)} 
+            onBackToDiagnosis={() => {
+              setShowEskaMila(false);
+              setShowDiagnostics(true);
+            }}
+          />
         </Suspense>
       </div>
     );
@@ -328,7 +329,22 @@ function AppContent() {
         </Gatekeeper>
       </MasterGuard>
       <Suspense fallback={null}>
-        <DiagnosticWrapper isOpen={showDiagnostics} onClose={() => setShowDiagnostics(false)} />
+        <DiagnosisOverlay 
+          isOpen={showDiagnostics} 
+          onClose={() => setShowDiagnostics(false)} 
+          onInitializeCore={() => {
+            setShowDiagnostics(false);
+            setShowEskaMila(true);
+          }}
+        />
+        <EskaMila 
+          isOpen={showEskaMila} 
+          onClose={() => setShowEskaMila(false)} 
+          onBackToDiagnosis={() => {
+            setShowEskaMila(false);
+            setShowDiagnostics(true);
+          }}
+        />
       </Suspense>
     </Router>
   );
@@ -344,10 +360,4 @@ export default function App() {
       </ThemeProvider>
     </ErrorBoundary>
   );
-}
-
-function DiagnosticWrapper({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
-  // EMERGENCY BYPASS: Allow trigger for all users to debug handshake issues
-  if (!isOpen) return null;
-  return <DevOverlay isOpen={isOpen} onClose={onClose} />;
 }
