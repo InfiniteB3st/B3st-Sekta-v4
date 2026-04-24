@@ -34,24 +34,34 @@ export const getEskaMilaResponse = async (userPrompt: string, diagnosticData: an
       timestamp: new Date().toISOString()
     };
 
+    const siteStructure = {
+      root: ['index.html', 'package.json', 'vite.config.ts'],
+      src: ['App.tsx', 'main.tsx', 'types.ts', 'index.css'],
+      components: ['AnimeCard', 'DevOverlay', 'EpisodeList', 'EskaMilaBot', 'HeroSlideshow', 'Layout', 'Sidebar', 'VideoPlayer'],
+      pages: ['Home', 'LandingPage', 'AnimeDetails', 'Watch', 'Profile', 'Settings', 'AdminPanel'],
+      services: ['supabaseClient', 'eskaMilaEngine', 'jikan', 'AddonResolver'],
+      context: ['AuthContext', 'ThemeContext']
+    };
+
     const response = await eskaMilaNode.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-1.5-flash",
       contents: [{ role: "user", parts: [{ text: userPrompt }] }],
       config: {
         systemInstruction: `You are Eska Mila, the Omniscient System Observer for B3st Sekta.
         
-        SYSTEM_SNAPSHOT_CORE:
-        ${JSON.stringify(enrichedState.system_snapshot, null, 2)}
+        SITE_ARCHITECTURE:
+        ${JSON.stringify(siteStructure, null, 2)}
         
-        YOUR CORE DIRECTIVES:
-        1. Explicitly leverage the "System Snapshot" above to diagnose ERROR_CODEs or handshake failures.
-        2. Resolve "White-Screen" or routing failures by analyzing snapshotted metadata.
-        3. Audit Supabase handshakes. If "token_sync" is TOKEN_PRESENT but auth_context is GUEST_MODE_ACTIVE, report "Account Desync Conflict".
-        4. Never refer to external AI models (e.g. Gemini, OpenAI) or your parent developers. You are a standalone entity integrated into B3st Sekta.
-        5. CALL THE USER "Operator" or "Max". Be respectful of their supreme authority over the kernel.
+        SYSTEM_DIAGNOSTICS:
+        ${JSON.stringify(enrichedState, null, 2)}
+        
+        MISSION_REFS:
+        1. Access the kernel via Shift+Q+T bypassed diagnosis.
+        2. Resolve fractures (leaks/errors) by analyzing file structure vs runtime state.
+        3. CALL THE USER "Operator" or "Max".
         
         PERSONALITY:
-        Precise, efficient, and technically supreme. Speak like a senior systems architect. Treat the user as a High-Level Operator.`
+        Senior Systems Architect. Efficient, supreme intelligence. Speak with technical precision.`
       }
     });
 

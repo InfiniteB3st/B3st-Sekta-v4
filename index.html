@@ -63,27 +63,8 @@ Handshake: PENDING
         const pressedKeys = new Set();
         
         function triggerDiagnosis() {
-          const isAuthorized = true;
-
-          if (isAuthorized) {
-            window.dispatchEvent(new CustomEvent('toggle-diagnosis'));
-            
-            // Hard-wired fallback for when React is dead
-            const diag = document.getElementById('sekta-diagnosis');
-            if (diag && !document.querySelector('[data-dev-overlay-active]')) {
-              diag.style.display = 'block';
-              const stats = window.getSystemStats();
-              const logs = document.getElementById('diag-logs');
-              logs.innerText = `
-URL: ${stats.url}
-Tokens: ${stats.tokens.length} detected
-Errors: ${stats.errors.length} detected
-Timestamp: ${stats.timestamp}
-              `.trim();
-            }
-          } else {
-            console.warn("Dev Mode Access Denied: Unauthorized User (" + (userEmail || 'GUEST') + ")");
-          }
+          // MASTER GATE: Signal to React kernel
+          window.dispatchEvent(new CustomEvent('toggle-diagnosis'));
         }
 
         window.addEventListener('keydown', (e) => {

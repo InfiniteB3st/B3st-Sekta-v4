@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
-const SB_URL = import.meta.env.VITE_SUPABASE_URL || import.meta.env.NEXT_PUBLIC_SUPABASE_URL || "https://wnjdlqqlmzjklxcgiqap.supabase.co";
-const SB_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InduamRscXFsbXpqa2x4Y2dpcWFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3ODU4MzIsImV4cCI6MjA5MjM2MTgzMn0.Z-WM1XtqO2CNPB9qmi0ivswAE-MVE8tBrrpqX1i5rRE";
+const SB_URL = (import.meta.env.VITE_SUPABASE_URL || import.meta.env.NEXT_PUBLIC_SUPABASE_URL || "https://wnjdlqqlmzjklxcgiqap.supabase.co").trim().replace(/\/$/, "");
+const SB_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InduamRscXFsbXpqa2x4Y2dpcWFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3ODU4MzIsImV4cCI6MjA5MjM2MTgzMn0.Z-WM1XtqO2CNPB9qmi0ivswAE-MVE8tBrrpqX1i5rRE").trim();
 
 import { SupabaseClient } from '@supabase/supabase-js';
 
@@ -19,7 +19,12 @@ export const getClient = () => {
       if (!SB_KEY || SB_KEY.includes('REPLACE')) {
         return null;
       }
-      _supabase = createClient(SB_URL, SB_KEY);
+      // KERNEL_FIX: Explicitly define headers to solve the "No API key found" Handshake error
+      _supabase = createClient(SB_URL, SB_KEY, {
+        global: {
+          headers: { 'apikey': SB_KEY },
+        },
+      });
     } catch (err) {
       console.error("SUPABASE_INIT_FAILURE: Kernel isolated.", err);
       return null;
@@ -39,9 +44,10 @@ export const uploadAvatar = async (userId: string, file: File) => {
     throw new Error("Invalid format. Use PNG, JPG, or WebP.");
   }
 
-  // VALIDATION: Size check (2MB)
-  if (file.size > 2 * 1024 * 1024) {
-    throw new Error("File exceeds 2MB limit.");
+  // VALIDATION: Size check (DYNAMIC LIMIT)
+  const limitMb = Number(import.meta.env.VITE_STORAGE_LIMIT_MB || 2);
+  if (file.size > limitMb * 1024 * 1024) {
+    throw new Error(`File exceeds ${limitMb}MB limit.`);
   }
 
   const filePath = `${userId}/profile.png`;

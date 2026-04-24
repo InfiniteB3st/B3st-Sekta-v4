@@ -65,9 +65,9 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
                <span className="text-4xl font-black italic text-white uppercase tracking-tighter">B3st</span>
                <span className="text-4xl font-black italic text-primary uppercase tracking-tighter">Sekta</span>
             </div>
-            <h2 className="text-xl font-bold text-gray-400 uppercase tracking-[0.2em]">Recovery Console Active</h2>
+            <h2 className="text-xl font-bold text-gray-400 uppercase tracking-[0.2em]">System Diagnostics Required</h2>
             <p className="text-gray-600 max-w-sm mx-auto text-[11px] font-medium leading-relaxed uppercase tracking-wider">
-               The kernel has intercepted a critical memory failure. Handshake state: {(window as any).HANDSHAKE_ERROR ? "FRACTURED" : "STABLE"}.
+               The kernel has intercepted a system warning. Access the Command Center to resolve.
                Press <span className="text-primary font-black">SHIFT + Q + T</span> to access the master bypass.
             </p>
           </div>
@@ -263,9 +263,9 @@ function AppContent() {
           <Database size={64} />
         </div>
         <div className="space-y-4">
-          <h1 className="text-4xl font-black italic text-white uppercase tracking-tighter">Eska Mila: Connection Lost</h1>
+          <h1 className="text-4xl font-black italic text-white uppercase tracking-tighter">Connection Interrupted</h1>
           <p className="text-gray-500 max-w-sm font-black uppercase tracking-[0.2em] text-[10px] leading-relaxed">
-            The database node has rejected the handshake. Eska Mila suggests verifying your Supabase API credentials.
+            The database node handshake is pending. Access the Command Center for manual override.
           </p>
         </div>
         <div className="flex gap-4">
